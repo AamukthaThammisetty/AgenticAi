@@ -5,3 +5,7 @@ webdriver-manager
 chromedriver-autoinstaller
 beautifulsoup4
 python-dotenv
+APIRouter
+fitz
+google-generativeai
+motor
