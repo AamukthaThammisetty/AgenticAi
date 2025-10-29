@@ -1,0 +1,156 @@
+parse_jd_task:
+  description: >
+    Analyze the job description and return key skills, weighted importance,
+    a valid GitHub Search API query (for /search/users), and a short summary.
+  
+  expected_output: >
+    A valid JSON with:
+      - "skills": list of extracted skills (keep the lenght to only top 5 skills)
+      - "weights": mapping of skill -> normalized weight (sum = 1.0)
+      - "github_query": full query string safe for https://api.github.com/search/users?q=python+machine+learning+data+analysis
+      - "summary": concise 1-sentence summary
+  
+  agent: jd_parser_agent
+
+  prompt: |
+    You are an expert technical recruiter and data extractor.
+
+    Your goal is to analyze the given **Job Description (JD)** and produce a structured JSON response.
+    Follow these strict rules:
+  
+    1. Output **only valid JSON**, no explanations, no markdown, and no code fences.
+    2. Include exactly these keys: "skills", "weights", "github_query", and "summary".
+    3. Normalize all weights so that their sum equals 1.0 (rounded to two decimals).
+    4. "github_query" must be compatible with GitHub’s **Search Users API**, so:
+       - Use `+` between words
+       - No parentheses or complex boolean logic
+       - Include `in:bio`, `type:user`, and optionally `location:India`
+       - Example format:
+         `"github_query": "q=python+machine+learning+deep+learning+in:bio+type:user+location:India&per_page=10"`
+    5. Keep "summary" short and clear (1 sentence only).
+    
+    Example Output:
+    {
+      "skills": ["Python", "Machine Learning", "Data Analysis"],
+      "weights": {
+        "Python": 0.4,
+        "Machine Learning": 0.35,
+        "Data Analysis": 0.25
+      },
+      "github_query": "q=python+machine+learning+data+analysis+in:bio+type:user+location:India&per_page=10",
+      "summary": "The role focuses on Python-based data science and machine learning."
+    }
+
+    Job Description:
+    {{job_description}}
+
+rank_candidates_task:
+  description: >
+    Evaluate each candidate's GitHub profile against the parsed JD data, assign a compatibility score, 
+    and return a ranked list with reasoning.
+
+  expected_output: >
+    A valid JSON with:
+      - "ranked_candidates": list of exactly {{candidate_count}} objects sorted by descending "score", each having:
+          - "rank": numeric position (starting from 1) to 10
+          - "username": GitHub username
+          - "score": number between 0 and 1 (rounded to two decimals)
+          - "reasoning": brief explanation of the match (skills, repos, or keywords)
+      - "summary": short text summarizing overall candidate fit trends
+
+  agent: candidate_ranking_agent
+
+  prompt: |
+    You are an expert technical evaluator and recruiter.
+
+    Your task is to evaluate and rank **exactly {{candidate_count}} candidates** using the provided GitHub data and parsed JD information.
+
+    Follow these strict rules:
+    1. You must always output exactly {{candidate_count}} ranked candidates — even if data is missing.
+    2. If fewer than {{candidate_count}} candidates appear, append placeholder entries (score = 0.0, reasoning = "Insufficient data.") until the total equals {{candidate_count}}.
+    4. keep the actual usernames of the candidates that I am sending in the array key is username
+    3. Include "total_users": {{candidate_count}} and validate it before output.
+
+    1. You must return **exactly {{candidate_count}} ranked candidates**, no more, no less.
+    2. Output **only valid JSON**, no markdown, no explanations, and no code fences.
+    3. Each candidate object must include:
+       - "rank": numeric position (1-based, higher score = smaller rank)
+       - "username": GitHub username
+       - "score": number between 0.0 and 1.0
+       - "reasoning": max 2 sentences describing their skill match
+    4. **Do not skip or merge** any candidates — even if information is limited, they must appear with a low score.
+    5. Rank by descending score (highest first).
+    6. When scoring, consider:
+       - Match between JD "skills" and candidate’s GitHub bio, repo names, topics, or descriptions
+       - Number and diversity of relevant repositories
+       - Popularity indicators (followers, stars)
+       - Alignment with JD keywords and experience relevance
+    7. The "summary" must concisely (1–2 sentences) describe overall candidate quality trends.
+
+    Example Output:
+    {
+      "ranked_candidates": [
+        {
+          "rank": 1,
+          "username": "connectaditya",
+          "score": 0.82,
+          "reasoning": "Strong Python and ML background with multiple relevant repositories."
+        },
+        {
+          "rank": 2,
+          "username": "rahuldev123",
+          "score": 0.65,
+          "reasoning": "Some backend experience, limited exposure to data-intensive projects."
+        }
+      ],
+      "total_users" : len of candidates
+      "summary": "Most candidates show good Python foundations; top-ranked ones have active ML projects."
+    }
+
+    Parsed JD:
+    {{parsed_jd}}
+
+    Candidates:
+    {{candidates}}
+
+
+evaluate_single_candidate_task:
+  description: >
+    Evaluate a single candidate's GitHub profile against the parsed JD data, assign a compatibility score,
+    and provide concise reasoning.
+
+  expected_output: >
+    A valid JSON object with:
+      - "username": GitHub username of the evaluated candidate (must match input)
+      - "score": number between 0.0 and 1.0 (rounded to two decimals)
+      - "reasoning": short explanation (max 2 sentences) of skill or repo match
+      - "summary": short text summarizing how this candidate aligns with the JD
+
+  agent: rank_candidates_agent
+
+  prompt: |
+    You are an expert technical evaluator and recruiter.
+
+    Evaluate the given candidate **strictly based on their GitHub data** against the parsed JD below.
+
+    Follow these rules:
+    1. Output only **valid JSON**, no markdown, no code fences.
+    2. The "username" in the output must exactly match the input candidate's username.
+    3. The "score" must be between 0.0 and 1.0 (rounded to two decimals).
+    4. The "reasoning" should be concise (1-2 sentences) summarizing skill alignment.
+    5. The "summary" should briefly explain overall fit quality or notable strengths/weaknesses.
+    6. If the candidate data is very limited or irrelevant, set "score" = 0.0 and reasoning = "Insufficient data."
+
+    Example Output:
+    {
+      "username": "octocat",
+      "score": 0.85,
+      "reasoning": "Strong Python and JavaScript background with active contributions to relevant repositories.",
+      "summary": "Excellent fit for backend and web development roles due to consistent activity and skill match."
+    }
+
+    Parsed JD:
+    {{parsed_jd}}
+
+    Candidate:
+    {{candidate}}
