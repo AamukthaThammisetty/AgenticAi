@@ -55,21 +55,21 @@ Frontend runs at:
 http://localhost:3000
 
 Workflow / Execution Process
-Recruiter enters or uploads a job description in the Next.js dashboard.
+Recruiter submits a job description through the frontend dashboard.
 
-Backend (FastAPI) sends the job description to CrewAI and Gemini.
+FastAPI sends the text to CrewAI and Gemini.
 
-JD Parser Agent extracts:
+The JD Parser Agent extracts:
 
 required skills
 
-experience levels
+experience level
 
 tech stack
 
 keywords
 
-Candidate Ranking Agent fetches GitHub profiles and analyzes:
+The Candidate Ranking Agent fetches GitHub profiles and analyzes:
 
 repositories
 
@@ -77,9 +77,9 @@ programming languages
 
 activity and contributions
 
-AI assigns a relevance score and ranks candidates.
+AI assigns a relevance score and ranks the candidates.
 
-Ranked candidate list is shown in the UI with GitHub and LinkedIn links.
+Frontend displays the final ranked list with GitHub and LinkedIn links.
 
 Project Structure
 bash
@@ -136,7 +136,7 @@ POST /parse-jd
   "job_description": "Looking for Python developer..."
 }
 2. Fetch GitHub Candidates
-sql
+bash
 Copy code
 GET /fetch-candidates?skills=python,react
 3. Rank Candidates
@@ -161,3 +161,10 @@ explanation
 GitHub link
 
 LinkedIn link
+
+Conclusion
+The AgenticAI Talent Finder automates job description parsing, GitHub profile evaluation, and candidate ranking using a multi-agent AI architecture.
+It reduces manual screening effort and provides transparent, data-driven hiring recommendations.
+
+yaml
+Copy code
